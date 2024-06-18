@@ -1,0 +1,65 @@
+provider "aws" {
+  region = "ca-central-1"
+}
+
+resource "aws_instance" "server" {
+  ami             = "ami-093890b2e7718a9d0"
+  instance_type   = "t2.micro"
+  key_name        = aws_key_pair.central_key.key_name
+  security_groups = [aws_security_group.tf_sg.name]
+  tags = {
+    Name = "web_application"
+  }
+  user_data = file("script.sh")
+}
+
+resource "aws_key_pair" "central_key" {
+  key_name   = "central_key"
+  public_key = tls_private_key.rsa.public_key_openssh
+}
+
+resource "tls_private_key" "rsa" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "local_file" "central_key" {
+  content  = tls_private_key.rsa.private_key_pem
+  filename = "tfkey"
+}
+
+resource "aws_security_group" "tf_sg" {
+  name        = "tf_sg"
+  description = "tf_sg"
+  vpc_id      = "vpc-07c2b42e0da1b4d42"
+
+  ingress {
+    description     = "HTTP"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    cidr_blocks     = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description     = "SSH"
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    cidr_blocks     = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "tf_sg"
+  }
+}
